@@ -4,15 +4,7 @@
 const { execSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
-// Inquirer se requiere directamente, NPM se encargará de instalarlo
 const inquirer = require("inquirer");
-
-// --- Variables Globales ---
-// appDir ya no es global para evitar problemas si se ejecutan comandos de actualización/apertura
-// sin haber creado un proyecto previamente en la misma ejecución.
-// La ruta del proyecto se determinará en el momento de ejecutar el comando.
-
-// --- Funciones Auxiliares ---
 
 /**
  * Ejecuta un comando de forma síncrona en el shell, mostrando la salida.
@@ -26,57 +18,18 @@ function runCommand(command, cwd = process.cwd()) {
     execSync(command, { stdio: "inherit", cwd }); // Ejecuta y muestra salida
   } catch (error) {
     console.error(`\n❌ Error ejecutando el comando: ${command}`);
-    console.error(error.message);
-    // No relanzamos el error aquí para los comandos de actualización/apertura,
-    // ya que podrían ejecutarse en directorios no válidos y queremos mostrar un mensaje útil.
-    // Sin embargo, para el flujo de creación principal, sí se relanza.
+    if (error && error.message) console.error(error.message);
+
+    // Relanzamos errores para comandos críticos de inicialización
     if (command.includes("npx cap init") || command.includes("npm init")) {
-       throw error; // Relanza solo si es un comando crítico de inicialización/creación
+      throw error;
     }
-    // Para otros comandos (sync, open), simplemente mostramos el error y no detenemos el script abruptamente.
-    // Esto permite que el usuario vea el error y sepa que necesita estar en el directorio correcto.
+
+    // Mensaje de ayuda genérico para comandos no críticos
     console.error("\n💡 Asegúrate de estar en el directorio raíz de tu proyecto JARC.");
+    return false;
   }
-}
-
-/**
- * Crea la estructura de directorios y maneja el proyecto web (www).
- * @param {string} appName - Nombre de la aplicación.
- * @param {string} projectRoot - Directorio raíz donde se ejecuta el script.
- */
-function setupProjectDirectory(appName, projectRoot) {
-  const appDir = path.join(projectRoot, appName);
-  console.log(`\nCreando directorio del proyecto en: ${appDir}`);
-
-  if (fs.existsSync(appDir)) {
-    console.warn(`⚠️ El directorio '${appName}' ya existe. Se continuará dentro de él.`);
-  } else {
-    fs.mkdirSync(appDir, { recursive: true });
-  }
-
-  // Cambia al directorio de la app para los siguientes comandos
-  process.chdir(appDir);
-  console.log(`Cambiado al directorio: ${process.cwd()}`);
-
-  // --- Manejo de la carpeta www ---
-  const wwwDest = path.join(appDir, "www");
-  // Busca 'www' en el directorio donde se ejecutó el script originalmente
-  const wwwSourcePotential = path.join(projectRoot, "www");
-
-  if (fs.existsSync(wwwSourcePotential) && fs.lstatSync(wwwSourcePotential).isDirectory()) {
-    console.log("\n📦 Copiando proyecto web existente desde 'www'...");
-      // Usa fs.cpSync si está disponible (Node.js >= 16.7)
-      if (fs.cpSync) {
-        fs.cpSync(wwwSourcePotential, wwwDest, { recursive: true });
-    } else {
-        // Fallback para versiones anteriores de Node.js
-        console.warn("⚠️ fs.cpSync no disponible (necesita Node.js >= 16.7). Creando www básico.");
-        createBasicWww(wwwDest, appName);
-    }
-  } else {
-    console.log("\n🌐 No se encontró 'www' en el directorio de origen. Creando 'www' básico...");
-    createBasicWww(wwwDest, appName);
-  }
+  return true;
 }
 
 /**
@@ -85,114 +38,66 @@ function setupProjectDirectory(appName, projectRoot) {
  * @param {string} appName - Nombre de la aplicación para el título.
  */
 function createBasicWww(wwwPath, appName) {
-    if (!fs.existsSync(wwwPath)) {
-      fs.mkdirSync(wwwPath);
-    }
+  if (!fs.existsSync(wwwPath)) {
+    fs.mkdirSync(wwwPath, { recursive: true });
+  }
 
-    // Crear carpetas css y js
-    const cssPath = path.join(wwwPath, "css");
-    const jsPath = path.join(wwwPath, "js");
-    if (!fs.existsSync(cssPath)) {
-        fs.mkdirSync(cssPath);
-        console.log("📂 Creada carpeta www/css.");
-    }
-    if (!fs.existsSync(jsPath)) {
-        fs.mkdirSync(jsPath);
-        console.log("📂 Creada carpeta www/js.");
-    }
+  // Crear carpetas css y js
+  const cssPath = path.join(wwwPath, "css");
+  const jsPath = path.join(wwwPath, "js");
+  if (!fs.existsSync(cssPath)) {
+    fs.mkdirSync(cssPath);
+    console.log("📂 Creada carpeta www/css.");
+  }
+  if (!fs.existsSync(jsPath)) {
+    fs.mkdirSync(jsPath);
+    console.log("📂 Creada carpeta www/js.");
+  }
 
-    // Contenido del archivo CSS
-    const cssContent = `
+  // Contenido del archivo CSS
+  const cssContent = `
 body {
-    font-family: 'Arial', sans-serif;
-    margin: 0;
-    padding: 0;
-    background-color: #f4f4f4;
-    color: #333;
-    line-height: 1.6;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    text-align: center;
+  font-family: 'Arial', sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f4f4f4;
+  color: #333;
+  line-height: 1.6;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  text-align: center;
 }
-
 .container {
-    max-width: 800px;
-    margin: 20px;
-    padding: 20px;
-    background-color: #fff;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
+  max-width: 800px;
+  margin: 20px;
+  padding: 20px;
+  background-color: #fff;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  border-radius: 8px;
 }
-
-h1 {
-    color: #007bff; /* Azul */
-    margin-bottom: 10px;
-}
-
-h2 {
-    color: #555;
-    margin-top: 0;
-    font-size: 1.2em;
-}
-
-p {
-    margin-bottom: 15px;
-}
-
-a {
-    color: #007bff;
-    text-decoration: none;
-}
-
-a:hover {
-    text-decoration: underline;
-}
-
-.logo {
-    width: 100px; /* Ajusta según necesites */
-    margin-bottom: 20px;
-}
-
-/* Estilos responsivos básicos */
-@media (max-width: 600px) {
-    .container {
-        margin: 10px;
-        padding: 15px;
-    }
-
-    h1 {
-        font-size: 1.8em;
-    }
-
-    h2 {
-        font-size: 1em;
-    }
-}
+h1 { color: #007bff; margin-bottom: 10px; }
+p { margin-bottom: 15px; }
 `;
-    fs.writeFileSync(path.join(cssPath, "style.css"), cssContent);
-    console.log("📄 Creado archivo www/css/style.css básico.");
 
-    // Contenido del archivo JS
-    const jsContent = `
+  fs.writeFileSync(path.join(cssPath, "style.css"), cssContent);
+  console.log("📄 Creado archivo www/css/style.css básico.");
+
+  // Contenido del archivo JS
+  const jsContent = `
 console.log('¡JARC iniciado!');
 
 // Puedes añadir aquí tu lógica JavaScript
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM completamente cargado y parseado.');
-    // Ejemplo: Cambiar el texto de un elemento
-    // const welcomeElement = document.getElementById('welcome-message');
-    // if (welcomeElement) {
-    //     welcomeElement.textContent = '¡Bienvenido a tu App JARCapp!';
-    // }
+  console.log('DOM completamente cargado y parseado.');
 });
 `;
-    fs.writeFileSync(path.join(jsPath, "main.js"), jsContent);
-    console.log("📄 Creado archivo www/js/main.js básico.");
+  fs.writeFileSync(path.join(jsPath, "main.js"), jsContent);
+  console.log("📄 Creado archivo www/js/main.js básico.");
 
-    // Contenido del archivo HTML
-    const htmlContent = `<!DOCTYPE html>
+  // Contenido del archivo HTML
+  const htmlContent = `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -203,30 +108,10 @@ document.addEventListener('DOMContentLoaded', () => {
 <body>
   <div class="container">
     <h1>¡Bienvenido a tu App ${appName}!</h1>
-    <h2>Generada con JARC CLI</h2>
-
-    <p>
-      Este es el punto de partida para tu aplicación móvil híbrida, construida con JARC, Capacitor y tu tecnología web favorita (HTML, CSS, JavaScript, o frameworks como Angular, React, Vue, etc.).
-    </p>
+    <h2>Generada con JARC</h2>
 
     <p>
       Edita los archivos en la carpeta <code>www</code> para empezar a construir tu interfaz y lógica.
-    </p>
-
-    <p>
-      Recuerda sincronizar tus cambios web con los proyectos nativos:
-      <br><code>jarc update android</code>
-      <br><code>jarc update ios</code>
-    </p>
-
-    <p>
-      Y abre los proyectos nativos en sus respectivos IDEs:
-      <br><code>jarc open android</code>
-      <br><code>jarc open ios</code>
-    </p>
-
-    <p>
-      ¡Feliz desarrollo!
     </p>
 
     <p>
@@ -238,227 +123,304 @@ document.addEventListener('DOMContentLoaded', () => {
   <script src="./js/main.js"></script>
 </body>
 </html>`;
-    fs.writeFileSync(path.join(wwwPath, "index.html"), htmlContent);
-    console.log("📄 Creado archivo www/index.html mejorado.");
+  fs.writeFileSync(path.join(wwwPath, "index.html"), htmlContent);
+  console.log("📄 Creado archivo www/index.html");
 }
 
 /**
- * Ejecuta el comando de sincronización de Capacitor para una plataforma específica.
- * @param {string} platform - La plataforma a sincronizar ('android' o 'ios').
+ * Sincroniza Capacitor para una plataforma específica.
+ * @param {string} platform - 'android'|'ios'
+ * @param {string} cwd - directorio raíz del proyecto
  */
-function syncProject(platform) {
-    console.log(`\n🔄 Sincronizando proyecto Capacitor para ${platform}...`);
-    runCommand(`npx cap sync ${platform}`);
+function syncProject(platform, cwd = process.cwd()) {
+  console.log(`\n🔄 Sincronizando proyecto Capacitor para ${platform}...`);
+  return runCommand(`npx cap sync ${platform}`, cwd);
 }
 
 /**
- * Ejecuta el comando para abrir el proyecto en el IDE nativo.
- * @param {string} platform - La plataforma a abrir ('android' o 'ios').
+ * Abre el proyecto en el IDE nativo correspondiente.
+ * Para Android se usa por defecto: jarc open -> Android
+ * Para iOS: jarc open ios
+ * @param {string} platform
  */
 function openProject(platform) {
-    console.log(`\nAbrindo proyecto en el IDE nativo para ${platform}...`);
-     // Advertencia para usuarios no-macOS si intentan abrir iOS
-    if (platform === 'ios' && process.platform !== 'darwin') {
-        console.warn("\n⚠️ Advertencia: Para abrir y trabajar con el proyecto iOS necesitas macOS y Xcode.");
-    }
-    // Utilizamos try/catch aquí también para manejar posibles errores al abrir el IDE
-    try {
-        runCommand(`npx cap open ${platform}`);
-        return true; // Indica que el comando de apertura se ejecutó
-    } catch (e) {
-        // El error ya se muestra en runCommand, solo retornamos false
-        return false; // Indica que hubo un error al intentar abrir
-    }
+  console.log(`\nAbrindo proyecto en el IDE nativo para ${platform}...`);
+  if (platform === "ios" && process.platform !== "darwin") {
+    console.warn("\n⚠️ Advertencia: Para abrir y trabajar con el proyecto iOS necesitas macOS y Xcode.");
+  }
+  try {
+    runCommand(`npx cap open ${platform}`);
+    return true;
+  } catch (e) {
+    return false;
+  }
 }
 
+/**
+ * Sanitize de segmentos para el appId
+ */
+function sanitizeIdSegment(s) {
+  if (!s) return "app";
+  return s.toString().toLowerCase().replace(/[^a-z0-9]/g, "");
+}
 
-// --- Función Principal ---
+/**
+ * Genera APK debug y lo copia a www/<appName>.apk
+ * @param {string} projectRoot
+ * @param {string} appNameSanitized
+ */
+function buildAndCopyApk(projectRoot, appNameSanitized) {
+  console.log("\n🔧 Generando APK (debug) automáticamente...");
+
+  // Sync antes
+  if (!syncProject("android", projectRoot)) {
+    console.warn("⚠️ Falló npx cap sync android — abortando generación de APK.");
+    return false;
+  }
+
+  const androidDir = path.join(projectRoot, "android");
+  // Ejecutar gradle wrapper adecuado
+  if (process.platform === "win32") {
+    if (!runCommand("gradlew.bat assembleDebug", androidDir)) {
+      console.warn("⚠️ gradlew.bat assembleDebug falló.");
+      return false;
+    }
+  } else {
+    if (!runCommand("./gradlew assembleDebug", androidDir)) {
+      console.warn("⚠️ ./gradlew assembleDebug falló.");
+      return false;
+    }
+  }
+
+  const apkSrc = path.join(androidDir, "app", "build", "outputs", "apk", "debug", "app-debug.apk");
+  const wwwDir = path.join(projectRoot, "www");
+  const apkDest = path.join(wwwDir, `${appNameSanitized}.apk`);
+
+  try {
+    if (!fs.existsSync(apkSrc)) {
+      console.warn(`\n⚠️ No existe el APK en: ${apkSrc}. Revisa la compilación de Gradle.`);
+      return false;
+    }
+    fs.mkdirSync(wwwDir, { recursive: true });
+    fs.copyFileSync(apkSrc, apkDest);
+    console.log(`\n✅ APK generado y copiado a: ${apkDest}`);
+    return true;
+  } catch (err) {
+    console.error("\n❌ Error copiando el APK:", err.message || err);
+    return false;
+  }
+}
+
+/**
+ * Función principal (main)
+ * - toma appName del directorio actual
+ * - crea / usa www
+ * - inicializa npm / capacitor según sea necesario
+ * - instala solo @capacitor/filesystem
+ * - agrega plataformas según selección (Android por defecto)
+ * - intenta abrir IDEs y genera APK automáticamente para Android
+ */
 async function main() {
+  // Mensaje de bienvenida (tal como lo tenías)
   console.log("-------------------------------------");
   console.log("🚀 Bienvenido a JARC 🚀");
   console.log("     Creado por: Jeison Arturo Rios Castaño");
   console.log("-------------------------------------");
 
-  const projectRoot = process.cwd(); // Guarda el directorio original
+  const projectRoot = process.cwd();
 
-  // 1. Recopilar información del usuario
+  // Nombre de la app = nombre de la carpeta actual
+  const rawAppName = path.basename(projectRoot) || "mi-app-jarc";
+  const appNameSanitized = sanitizeIdSegment(rawAppName) || "miapp";
+
+  // User para appId: process.env.USER || process.env.USERNAME || fallback carpeta padre
+  let envUser = process.env.USER || process.env.USERNAME || "";
+  if (!envUser) {
+    envUser = path.basename(path.dirname(projectRoot)) || "user";
+  }
+  const userSegment = sanitizeIdSegment(envUser) || "user";
+
+  const appId = `com.${userSegment}.${appNameSanitized}`;
+
+  console.log(`\n📁 Directorio actual: ${projectRoot}`);
+  console.log(`📛 Nombre de la app (tomado del directorio): ${rawAppName}`);
+  console.log(`🆔 ID de la app: ${appId}`);
+
+  // Preguntamos solo por plataformas. Android es el objetivo principal; quien necesite iOS lo selecciona.
   const respuestas = await inquirer.prompt([
-    {
-      name: "appName",
-      message: "¿Cómo quieres llamar a tu aplicación móvil (nombre del directorio)?",
-      default: "mi-app-jarc", // Default
-      validate: (input) => !!input || "El nombre no puede estar vacío.",
-    },
-    {
-        name: "appId",
-        message: "¿Cuál será el ID de paquete de tu app (ej: com.miempresa.miapp)?",
-        default: (answers) => `com.example.${answers.appName.toLowerCase().replace(/[^a-z0-9]/g, '')}`, // Default
-        validate: (input) => /^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)+$/.test(input) || "Formato de ID inválido (ej: com.dominio.app)",
-    },
     {
       type: "checkbox",
       name: "platforms",
-      message: "¿Qué plataformas nativas quieres agregar? recuerda que si seleccionas iOS, debes estar utilizando un equipo Mac con Xcode instalado",
+      message:
+        "¿Qué plataformas nativas querés agregar? (iOS requiere macOS/Xcode) - Android es la predeterminada",
       choices: ["android", "ios"],
-      default: ["android"] // Preseleccionar Android es común
-    },
-    {
-      type: "checkbox",
-      name: "plugins",
-      message: "¿Quieres agregar algunos plugins comunes de Capacitor?",
-      choices: [
-        { name: "Camera (Cámara)", value: "@capacitor/camera" },
-        { name: "Filesystem (Sistema de archivos)", value: "@capacitor/filesystem" },
-        { name: "Geolocation (Geolocalización)", value: "@capacitor/geolocation" },
-        { name: "Splash Screen (Pantalla de inicio)", value: "@capacitor/splash-screen" },
-        { name: "Status Bar (Barra de estado)", value: "@capacitor/status-bar" },
-        // Puedes añadir más si quieres
-      ],
+      default: ["android"],
     },
   ]);
 
+  const platforms = respuestas.platforms || [];
+
+  // Manejo de www: si no existe, lo creamos
+  const wwwPath = path.join(projectRoot, "www");
+  if (fs.existsSync(wwwPath) && fs.lstatSync(wwwPath).isDirectory()) {
+    console.log("\n📦 Se detectó carpeta 'www' — se usará tu contenido web existente.");
+  } else {
+    console.log("\n🌐 No se encontró 'www'. Creando 'www' básico...");
+    createBasicWww(wwwPath, rawAppName);
+  }
+
   try {
-    // 2. Crear estructura de directorios y manejar 'www'
-    setupProjectDirectory(respuestas.appName, projectRoot);
+    // Inicializar NPM si no existe package.json
+    const pkgJsonPath = path.join(projectRoot, "package.json");
+    if (!fs.existsSync(pkgJsonPath)) {
+      console.log("\n📦 Inicializando NPM en el proyecto...");
+      runCommand("npm init -y", projectRoot);
+    } else {
+      console.log("\nℹ️ package.json detectado — se omite npm init.");
+    }
 
-    // 3. Inicializar NPM dentro del nuevo directorio
-    console.log("\nInitializing NPM...");
-    runCommand("npm init -y");
+    // Instalar Capacitor CLI y Core (si no están)
+    console.log("\n📥 Instalando Capacitor CLI y Core...");
+    runCommand("npm install @capacitor/cli @capacitor/core", projectRoot);
 
-    // 4. Instalar dependencias de Capacitor
-    console.log("\nInstalando Capacitor CLI y Core...");
-    runCommand("npm install @capacitor/cli @capacitor/core");
+    // Inicializar Capacitor si no existe la config
+    const capJson = path.join(projectRoot, "capacitor.config.json");
+    const capTs = path.join(projectRoot, "capacitor.config.ts");
+    if (!fs.existsSync(capJson) && !fs.existsSync(capTs)) {
+      console.log("\n⚙️ Inicializando Capacitor en el proyecto...");
+      runCommand(`npx cap init "${rawAppName}" "${appId}" --web-dir="www"`, projectRoot);
+    } else {
+      console.log("\nℹ️ Configuración de Capacitor detectada — se omite init.");
+    }
 
-    // 5. Inicializar Capacitor
-    console.log("\nInicializando Capacitor en el proyecto...");
-    // Usar las respuestas del usuario para nombre y ID
-    runCommand(`npx cap init "${respuestas.appName}" "${respuestas.appId}" --web-dir="www"`);
-
-    // 6. Agregar plataformas nativas
-    if (respuestas.platforms.includes("android")) {
+    // Agregar plataformas según la selección
+    if (platforms.includes("android")) {
       console.log("\n🤖 Agregando plataforma Android...");
-      runCommand("npm install @capacitor/android");
-      runCommand("npx cap add android");
+      runCommand("npm install @capacitor/android", projectRoot);
+      runCommand("npx cap add android", projectRoot);
     }
-    if (respuestas.platforms.includes("ios")) {
-        // Advertencia para usuarios no-macOS
-        if (process.platform !== 'darwin') {
-            console.warn("\n⚠️ Advertencia: Para construir y ejecutar apps iOS necesitas macOS y Xcode.");
-        }
-      console.log("\n🍏 Agregando plataforma iOS...");
-      runCommand("npm install @capacitor/ios");
-      runCommand("npx cap add ios");
+    if (platforms.includes("ios")) {
+      console.log("\n🍏 Agregando plataforma iOS (opcional)...");
+      runCommand("npm install @capacitor/ios", projectRoot);
+      runCommand("npx cap add ios", projectRoot);
     }
 
-    // 7. Instalar plugins seleccionados
-    if (respuestas.plugins && respuestas.plugins.length > 0) {
-      console.log("\n🔌 Instalando plugins seleccionados...");
-      const pluginInstallCommand = `npm install ${respuestas.plugins.join(" ")}`;
-      runCommand(pluginInstallCommand);
-    }
-
-    // 8. Sincronizar el proyecto Capacitor
-    console.log("\n🔄 Sincronizando proyecto JARC (copiando web assets, actualizando plugins)...");
-    runCommand("npx cap sync"); // Sincroniza todas las plataformas agregadas
+    // Sincronizar (cap sync)
+    console.log("\n🔄 Sincronizando proyecto JARC (cap sync)...");
+    runCommand("npx cap sync", projectRoot);
 
     // 9. Abrir IDE (Opcional y condicional) - Intentamos abrir automáticamente
     let openedIDE = false;
-    if (respuestas.platforms.includes("android")) {
-        console.log("\nIntentando abrir proyecto en Android Studio...");
-        openedIDE = openProject("android"); // openProject retorna true/false
-        if (!openedIDE) {
-             console.warn("🟡 No se pudo abrir Android Studio automáticamente. Asegúrate de que esté instalado y configurado en tu PATH, o ábrelo manualmente con 'jarc open android'.");
-        }
+    if (platforms.includes("android")) {
+      console.log("\nIntentando abrir proyecto en Android Studio...");
+      openedIDE = openProject("android"); // openProject retorna true/false
+      if (!openedIDE) {
+        console.warn(
+          "🟡 No se pudo abrir Android Studio automáticamente. Asegúrate de que esté instalado y configurado en tu PATH, o ábrelo manualmente con 'jarc open' o 'npx cap open android'."
+        );
+      }
     }
     // Solo intentar abrir Xcode en macOS si se seleccionó iOS
-    if (respuestas.platforms.includes("ios") && process.platform === 'darwin') {
-         console.log("\nIntentando abrir proyecto en Xcode...");
-         const openedIOS = openProject("ios");
-         if (openedIOS) {
-             openedIDE = true; // Si se abrió iOS, consideramos que se abrió un IDE
-         } else {
-             console.warn("🟡 No se pudo abrir Xcode automáticamente. Asegúrate de que esté instalado, o ábrelo manualmente con 'jarc open ios'.");
-         }
+    if (platforms.includes("ios") && process.platform === "darwin") {
+      console.log("\nIntentando abrir proyecto en Xcode...");
+      const openedIOS = openProject("ios");
+      if (openedIOS) {
+        openedIDE = true; // Si se abrió iOS, consideramos que se abrió un IDE
+      } else {
+        console.warn(
+          "🟡 No se pudo abrir Xcode automáticamente. Asegúrate de que esté instalado, o ábrelo manualmente con 'jarc open ios' o 'npx cap open ios'."
+        );
+      }
     }
 
+    // --- Paso nuevo: Generar APK debug automáticamente (si Android fue seleccionado) ---
+    if (platforms.includes("android")) {
+      const ok = buildAndCopyApk(projectRoot, appNameSanitized);
+      if (!ok) {
+        console.warn(
+          "\n⚠️ La generación automática del APK falló o no se completó. Revisa la salida anterior."
+        );
+      }
+    }
 
-    // 10. Mensaje final
+    // 10. Mensaje final (mantengo el estilo de salida que tenías)
     console.log("\n-----------------------------------------");
     console.log("✅ ¡Tu proyecto JARC ha sido creado exitosamente!.");
+    console.log(`   App: ${rawAppName}`);
+    console.log(`   ID: ${appId}`);
     console.log("     Framework creado por Jeison Arturo Rios Castaño");
     console.log("     Contacto: https://www.linkedin.com/in/jeisonrios/");
-     // appDir ya no es accesible aquí, usamos el nombre de la app
-    console.log(`\n➡️ Directorio del proyecto: ./${respuestas.appName}`);
+    console.log(`\n➡️ Directorio del proyecto: ${projectRoot}`);
     console.log("\nSiguientes pasos sugeridos:");
-    // Sugiere el comando cd con el nombre base del directorio creado
-    console.log(`   1. Entra al directorio: cd ${respuestas.appName}`);
-
-    // Ajusta los mensajes de apertura de IDEs basándose en si se intentó abrir automáticamente
     if (!openedIDE) {
-        if (respuestas.platforms.includes("android")) {
-             console.log(`   2. Para abrir en Android Studio manualmente: jarc open`);
-        }
-        if (respuestas.platforms.includes("ios") && process.platform === 'darwin') {
-             console.log(`   ${respuestas.platforms.includes("android") ? '3' : '2'}. Para abrir en Xcode (en macOS) manualmente: jarc open ios`);
-        }
-    } else {
-         console.log(`   2. Se intentó abrir el proyecto en el IDE nativo. Si no se abrió, usa 'jarc open [android|ios]'.`);
+      console.log(`   Para abrir en Android Studio manualmente escribe: jarc open`);
     }
-
-
-    console.log(`   ${openedIDE ? '3' : (respuestas.platforms.length > 0 ? (respuestas.platforms.includes("android") && respuestas.platforms.includes("ios") ? '4' : '3') : '2')}. Para sincronizar cambios web: jarc update [android|ios]`);
-    console.log(`   ${openedIDE ? '4' : (respuestas.platforms.length > 0 ? (respuestas.platforms.includes("android") && respuestas.platforms.includes("ios") ? '5' : '4') : '3')}. ¡Empieza a desarrollar tu app en la carpeta 'www'!`);
-    console.log(`   ${openedIDE ? '5' : (respuestas.platforms.length > 0 ? (respuestas.platforms.includes("android") && respuestas.platforms.includes("ios") ? '6' : '5') : '4')}. Ejecuta en el emulador/dispositivo desde Android Studio o Xcode.`);
+    if (platforms.includes("ios") && process.platform === "darwin") {
+      console.log(`   Para abrir en Xcode (en macOS) manualmente: jarc open ios`);
+    }
+    console.log(`   1. ¡Continua desarrollando tu app en la carpeta 'www'!`);
+    console.log(`   2. Para sincronizar cambios realizados en www: jarc update [ios]`);
+    console.log(`   3. El APK de tu aplicación se encuentra en la carpeta www, con el nombre: ${appNameSanitized}.apk`);
+    console.log(`   ¡LISTO PARA COMPARTIR E INSTALAR!`);
     console.log("-----------------------------------------");
-
   } catch (error) {
     console.error("\n🚨🚨🚨 Ocurrió un error durante la creación del proyecto. 🚨🚨🚨");
-    // El error específico ya se mostró en runCommand
     console.error("Revisa los mensajes anteriores para más detalles.");
     process.exit(1); // Salir con código de error
   }
 }
 
 // --- Lógica para manejar argumentos de línea de comandos ---
-
 const args = process.argv.slice(2); // Obtiene los argumentos después del nombre del script
 
-// Verifica si hay argumentos y si el primer argumento es un comando conocido
 if (args.length > 0) {
-    const command = args[0].toLowerCase();
-    const platform = args[1] ? args[1].toLowerCase() : null; // Segundo argumento para la plataforma
+  const command = args[0].toLowerCase();
+  const platformArg = args[1] ? args[1].toLowerCase() : null;
+  const projectRoot = process.cwd(); // Directorio actual
 
-    // Asegúrate de estar en el directorio raíz del proyecto antes de ejecutar comandos de Capacitor
-    // Esto asume que el script se ejecuta desde dentro del directorio del proyecto.
-    // Si el usuario lo ejecuta desde fuera, necesitará navegar primero.
-    // Podríamos añadir lógica para detectar si es un proyecto Capacitor, pero por ahora asumimos que sí.
-    const projectRoot = process.cwd(); // Directorio actual
+  switch (command) {
+    case "update":
+      if (platformArg === "ios") {
+        syncProject("ios", projectRoot);
+      } else {
+        // Por defecto, sincroniza Android si no se especifica
+        syncProject("android", projectRoot);
+      }
+      break;
 
-    switch (command) {
-        case 'update':
-            if (platform === 'ios') {
-                syncProject('ios');
-            } else {
-                // Por defecto, sincroniza Android si no se especifica o si se especifica 'android'
-                syncProject('android');
-            }
-            break;
-        case 'open':
-             if (platform === 'ios') {
-                openProject('ios');
-            } else {
-                // Por defecto, abre Android Studio si no se especifica o si se especifica 'android'
-                openProject('android');
-            }
-            break;
-        default:
-            // Si el comando no es reconocido, ejecuta el flujo de creación principal
-            console.log(`\nComando no reconocido: '${command}'. Iniciando flujo de creación de proyecto.`);
-            main(); // Ejecuta la función principal de creación
-            break;
-    }
+    case "open":
+      // jarc open -> abre Android; jarc open ios -> abre ios
+      if (platformArg === "ios") {
+        openProject("ios");
+      } else {
+        openProject("android");
+      }
+      break;
+
+    case "apk":
+      // jarc apk -> android; jarc apk ios -> ios
+      if (platformArg === "ios") {
+        console.warn("\n🍏 Generando build para iOS...");
+        console.warn("⚠️ Esto requiere macOS y Xcode instalado.");
+        runCommand(`npx cap sync ios`, projectRoot);
+        runCommand(`npx cap build ios`, projectRoot);
+        console.log("\n✅ Proyecto iOS compilado.");
+        console.log(
+          "Para generar el archivo IPA, abre Xcode o usa xcodebuild con exportOptionsPlist."
+        );
+      } else {
+        // Android default
+        buildAndCopyApk(projectRoot, sanitizeIdSegment(path.basename(projectRoot)));
+      }
+      break;
+
+    default:
+      // Si el comando no es reconocido, ejecuta el flujo de creación principal
+      console.log(`\nComando no reconocido: '${command}'. Iniciando flujo de creación de proyecto.`);
+      main(); // Ejecuta la función principal de creación
+      break;
+  }
 } else {
-    // Si no hay argumentos, ejecuta el flujo de creación principal
-    main();
+  // Si no hay argumentos, ejecuta el flujo de creación principal
+  main();
 }
-

@@ -1,0 +1,40 @@
+{
+    "name": "jarc",
+    "version": "1.0.6",
+    "description": "Un Framework CLI para automatizar la creación de aplicaciones móviles desde HTML y CSS.",
+    "main": "index.js",
+    "bin": {
+        "jarc": "index.js"
+    },
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [
+        "capacitor",
+        "cli",
+        "automation",
+        "mobile",
+        "generator",
+        "apk",
+        "app",
+        "android",
+        "ios",
+        "jarc"
+    ],
+    "author": "Jeison Arturo Rios Castaño (https://www.linkedin.com/in/jeisonrios/)",
+    "license": "MIT",
+    "dependencies": {
+        "inquirer": "^8.2.6"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/jarcvon0663/jarc.git"
+    },
+    "bugs": {
+        "url": "https://github.com/tu_usuario/tu_repositorio/issues"
+    },
+    "homepage": "https://www.arturo-rios.com/",
+    "engines": {
+        "node": ">=16.0.0"
+    }
+}
